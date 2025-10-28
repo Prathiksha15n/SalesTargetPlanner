@@ -1,4 +1,5 @@
-import React from 'react';
+// chartpanel.js
+import React, { useEffect } from 'react';
 import styled from 'styled-components';
 import {
   BarChart,
@@ -6,7 +7,7 @@ import {
   XAxis,
   YAxis,
   CartesianGrid,
-  Tooltip,
+  Tooltip as RechartsTooltip,
   ResponsiveContainer
 } from 'recharts';
 import { FaChartBar, FaEye, FaEyeSlash } from 'react-icons/fa';
@@ -21,6 +22,7 @@ const Panel = styled.div`
   width: 100%;
   max-width: 100%;
   box-sizing: border-box;
+  min-width: 0; /* prevent flex parents from collapsing width */
 `;
 
 const PanelHeader = styled.div`
@@ -30,6 +32,7 @@ const PanelHeader = styled.div`
   margin-bottom: 1.5rem;
   flex-wrap: wrap;
   gap: 1rem;
+  min-width: 0;
 `;
 
 const PanelTitle = styled.h2`
@@ -74,6 +77,7 @@ const ChartContainer = styled.div`
   margin-top: 1rem;
   overflow: hidden;
   box-sizing: border-box;
+  min-width: 0;
 `;
 
 const ChartTitle = styled.h3`
@@ -85,15 +89,15 @@ const ChartTitle = styled.h3`
 `;
 
 const ChartWrapper = styled.div`
-  flex: 1;
   width: 100%;
-  height: 450px;
+  height: 450px; /* explicit height for ResponsiveContainer */
   position: relative;
   overflow: hidden;
+  min-width: 0;
 `;
 
 const ChartPlaceholder = styled.div`
-  height: 400px;
+  height: 200px;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -113,6 +117,16 @@ function ChartPanel({ results, showCharts, setShowCharts }) {
     revenue: Math.round(product.revenueGoalProduct)
   }));
 
+  // Force Recharts to recompute sizes when charts are revealed
+  useEffect(() => {
+    if (showCharts && typeof window !== 'undefined') {
+      const id = setTimeout(() => {
+        window.dispatchEvent(new Event('resize'));
+      }, 0);
+      return () => clearTimeout(id);
+    }
+  }, [showCharts]);
+
   const CustomTooltip = ({ active, payload, label }) => {
     if (active && payload && payload.length) {
       return (
@@ -125,10 +139,10 @@ function ChartPanel({ results, showCharts, setShowCharts }) {
             boxShadow: '0 4px 12px rgba(0,0,0,0.1)'
           }}
         >
-          <p style={{ margin: 0, fontWeight: '600' }}>{label}</p>
+          <p style={{ margin: 0, fontWeight: 600 }}>{label}</p>
           {payload.map((entry, index) => (
             <p key={index} style={{ margin: '4px 0', color: entry.color }}>
-              {entry.dataKey}: {entry.value}
+              {entry.dataKey}: {entry.value.toLocaleString()}
             </p>
           ))}
         </div>
@@ -173,7 +187,11 @@ function ChartPanel({ results, showCharts, setShowCharts }) {
       <ChartContainer>
         <ChartTitle>Units vs Leads Required</ChartTitle>
         <ChartWrapper>
-          <ResponsiveContainer width="100%" height="100%">
+          <ResponsiveContainer
+            width="100%"
+            height="100%"
+            key={`${showCharts}-${chartData.length}`} /* force re-measure */
+          >
             <BarChart
               data={chartData}
               margin={{ top: 30, right: 20, left: 20, bottom: 60 }}
@@ -195,7 +213,7 @@ function ChartPanel({ results, showCharts, setShowCharts }) {
                 tick={{ fill: '#4a5568' }}
                 tickFormatter={(value) => value.toLocaleString()}
               />
-              <Tooltip content={<CustomTooltip />} />
+              <RechartsTooltip content={<CustomTooltip />} />
               <Bar
                 dataKey="units"
                 fill="#667eea"
